@@ -123,8 +123,25 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                 .container {
                     display: flex;
                     flex-direction: column;
-                    gap: 15px;
                     height: 100%;
+                    gap: 15px;
+                }
+                
+                .top-section {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                    overflow: hidden;
+                }
+                
+                .bottom-section {
+                    flex-shrink: 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    padding-top: 10px;
+                    border-top: 1px solid var(--vscode-panel-border);
                 }
                 
                 textarea {
@@ -189,13 +206,11 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                 
                 .history {
                     flex: 1;
-                    min-height: 150px;
-                    max-height: 300px;
+                    min-height: 100px;
                     overflow-y: auto;
                     border: 1px solid var(--vscode-input-border);
                     border-radius: 4px;
                     background: var(--vscode-input-background);
-                    margin-top: 10px;
                 }
                 .history-header {
                     padding: 8px 12px;
@@ -235,26 +250,30 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
         </head>
         <body>
             <div class="container">
-                <div class="label">Japanese Input Support</div>
-                
-                <div>
-                    <textarea id="inputText" placeholder="日本語でコマンドや質問を入力してください..."></textarea>
-                    <div class="char-count" id="charCount">0 characters</div>
+                <div class="top-section">
+                    <div class="label">Japanese Input Support</div>
+                    
+                    <div class="history" id="history">
+                        <div class="history-header">Input History (最大20件)</div>
+                        <div class="history-empty">履歴はまだありません</div>
+                    </div>
                 </div>
                 
-                <div class="button-group">
-                    <button onclick="sendToTerminal()">Send to Terminal</button>
-                    <button class="secondary" onclick="clearInput()">Clear</button>
-                    <button class="secondary" onclick="copyToClipboard()">Copy</button>
-                </div>
-                
-                <div class="history" id="history">
-                    <div class="history-header">Input History (最大20件)</div>
-                    <div class="history-empty">履歴はまだありません</div>
-                </div>
-                
-                <div class="shortcut">
-                    <strong>Shortcuts:</strong> Ctrl+Enter (send) | Ctrl+K (clear)
+                <div class="bottom-section">
+                    <div>
+                        <textarea id="inputText" placeholder="日本語でコマンドや質問を入力してください..."></textarea>
+                        <div class="char-count" id="charCount">0 characters</div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button onclick="sendToTerminal()">Send to Terminal</button>
+                        <button class="secondary" onclick="clearInput()">Clear</button>
+                        <button class="secondary" onclick="copyToClipboard()">Copy</button>
+                    </div>
+                    
+                    <div class="shortcut">
+                        <strong>Shortcuts:</strong> Ctrl+Enter (send) | Ctrl+K (clear)
+                    </div>
                 </div>
             </div>
 
