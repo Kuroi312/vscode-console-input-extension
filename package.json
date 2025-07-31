@@ -1,0 +1,102 @@
+{
+  "name": "console-input-helper",
+  "displayName": "Console Input Helper",
+  "description": "Japanese input helper for CLI tools like Claude Code and Gemini CLI",
+  "version": "1.0.0",
+  "publisher": "console-input-helper",
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/console-input-helper"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "japanese",
+    "input",
+    "console",
+    "terminal",
+    "cli",
+    "gemini",
+    "claude"
+  ],
+  "activationEvents": [
+    "onView:consoleInputView",
+    "onView:consoleInputViewExplorer",
+    "onView:consoleInputViewPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "console-input-helper",
+          "title": "Console Input Helper",
+          "icon": "$(terminal)"
+        }
+      ],
+      "panel": [
+        {
+          "id": "console-input-helper-panel",
+          "title": "Console Input Helper",
+          "icon": "$(terminal)"
+        }
+      ]
+    },
+    "views": {
+      "console-input-helper": [
+        {
+          "id": "consoleInputView",
+          "name": "Input Panel",
+          "type": "webview"
+        }
+      ],
+      "console-input-helper-panel": [
+        {
+          "id": "consoleInputViewPanel",
+          "name": "Input Panel",
+          "type": "webview",
+          "when": "config.console-input-helper.showInPanel"
+        }
+      ],
+      "explorer": [
+        {
+          "id": "consoleInputViewExplorer", 
+          "name": "Console Input",
+          "type": "webview",
+          "when": "config.console-input-helper.showInExplorer"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Console Input Helper",
+      "properties": {
+        "console-input-helper.showInExplorer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show Console Input Helper in Explorer sidebar"
+        },
+        "console-input-helper.showInPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Console Input Helper in bottom panel"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  }
+}
