@@ -2,7 +2,7 @@
   "name": "console-input-helper",
   "displayName": "Console Input Helper",
   "description": "Japanese input helper for CLI tools like Claude Code and Gemini CLI",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "console-input-helper",
   "author": "Your Name",
   "license": "MIT",
