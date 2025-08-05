@@ -28,9 +28,11 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
     private _persistentData: {
         inputText: string;
         history: Array<{text: string, timestamp: string}>;
+        resizeBarPosition: number;
     } = {
         inputText: '',
-        history: []
+        history: [],
+        resizeBarPosition: 200
     };
 
     constructor(private readonly _extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
@@ -76,6 +78,34 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                         type: 'restoreData',
                         data: this._persistentData
                     });
+                    break;
+                case 'saveResizePosition':
+                    this._persistentData.resizeBarPosition = data.position;
+                    this._savePersistentData();
+                    break;
+                case 'requestClearHistory':
+                    console.log('Received requestClearHistory');
+                    // VSCode APIを使用して確認ダイアログを表示
+                    const result = await vscode.window.showWarningMessage(
+                        '履歴を全て削除しますか？',
+                        { modal: true },
+                        'はい',
+                        'いいえ'
+                    );
+                    
+                    if (result === 'はい') {
+                        console.log('User confirmed deletion');
+                        this._persistentData.history = [];
+                        this._savePersistentData();
+                        console.log('History cleared and saved');
+                        await webviewView.webview.postMessage({
+                            type: 'historyCleared'
+                        });
+                        console.log('historyCleared message sent');
+                        vscode.window.showInformationMessage('履歴を削除しました');
+                    } else {
+                        console.log('User cancelled deletion');
+                    }
                     break;
             }
         });
@@ -173,10 +203,15 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
             type PersistentDataType = {
                 inputText: string;
                 history: Array<{text: string, timestamp: string}>;
+                resizeBarPosition?: number;
             };
             const savedData = this._context.workspaceState.get<PersistentDataType>('consoleInputHelper.data');
             if (savedData) {
-                this._persistentData = savedData;
+                this._persistentData = {
+                    inputText: savedData.inputText || '',
+                    history: savedData.history || [],
+                    resizeBarPosition: savedData.resizeBarPosition || 200
+                };
             }
         } catch (error) {
             console.error('Failed to load persistent data:', error);
@@ -346,11 +381,38 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                     background-color: var(--vscode-button-secondaryHoverBackground);
                 }
                 
+                .header-section {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 8px;
+                }
+                
                 .label {
                     font-size: 13px;
                     font-weight: 500;
-                    margin-bottom: 8px;
                     color: var(--vscode-foreground);
+                }
+                
+                .clear-history-btn {
+                    background: none;
+                    border: 1px solid var(--vscode-button-secondaryBackground);
+                    color: var(--vscode-button-secondaryForeground);
+                    padding: 4px 8px;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                
+                .clear-history-btn:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                }
+                
+                .clear-icon {
+                    font-size: 10px;
                 }
                 
                 .history {
@@ -400,7 +462,12 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
         <body>
             <div class="container">
                 <div class="top-section" id="topSection">
-                    <div class="label">Japanese Input Support</div>
+                    <div class="header-section">
+                        <div class="label">Japanese Input Support</div>
+                        <button class="clear-history-btn" id="clearHistoryBtn" title="Clear History">
+                            <span class="clear-icon">🗑️</span>
+                        </button>
+                    </div>
                     
                     <div class="history" id="history">
                         <div class="history-header">Input History (最大20件)</div>
@@ -425,7 +492,7 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     
                     <div class="shortcut">
-                        <strong>Shortcuts:</strong> Ctrl+Enter (send) | Alt+Enter (enter key only) | Ctrl+K (clear)
+                        <strong>Shortcuts:</strong> Ctrl+Enter (send/enter) | Ctrl+K (clear)
                     </div>
                 </div>
             </div>
@@ -456,6 +523,20 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                                 history = data.history;
                                 updateHistoryDisplay();
                             }
+                            if (data.resizeBarPosition) {
+                                // DOM要素が利用可能になってからリサイズ位置を設定
+                                setTimeout(() => {
+                                    setResizePosition(data.resizeBarPosition);
+                                }, 100);
+                            }
+                            break;
+                        case 'historyCleared':
+                            console.log('historyCleared message received in webview');
+                            history = [];
+                            updateHistoryDisplay();
+                            // 履歴クリア後に明示的に保存
+                            saveHistory();
+                            console.log('History display updated and saved');
                             break;
                     }
                 });
@@ -498,6 +579,15 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                 function copyToClipboard() {
                     const text = document.getElementById('inputText').value;
                     navigator.clipboard.writeText(text);
+                }
+
+                function clearHistory() {
+                    console.log('clearHistory function called');
+                    // VSCode Webviewではconfirm()が使えないため、VSCode側で確認する
+                    vscode.postMessage({
+                        type: 'requestClearHistory'
+                    });
+                    console.log('requestClearHistory message sent to extension');
                 }
 
                 function sendEnterOnly() {
@@ -571,10 +661,7 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                     const inputText = document.getElementById('inputText').value;
                     
                     if (e.ctrlKey && e.key === 'Enter') {
-                        // Ctrl+Enter: 通常の送信
-                        sendToTerminal();
-                    } else if (e.altKey && e.key === 'Enter') {
-                        // Alt+Enter: 空の場合はEnterキーのみ送信、内容がある場合は通常送信
+                        // Ctrl+Enter: 空の場合はEnterキーのみ送信、内容がある場合は通常送信
                         e.preventDefault();
                         if (inputText.trim() === '') {
                             sendEnterOnly();
@@ -606,7 +693,8 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                 function startResize(e) {
                     isResizing = true;
                     startY = e.clientY;
-                    startBottomHeight = bottomSection.offsetHeight;
+                    const currentBottomSection = document.getElementById('bottomSection');
+                    startBottomHeight = currentBottomSection ? currentBottomSection.offsetHeight : 200;
                     
                     // ドラッグ中のカーソルを設定
                     document.body.style.cursor = 'row-resize';
@@ -633,12 +721,19 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                     
                     newBottomHeight = Math.max(minBottomHeight, Math.min(newBottomHeight, maxBottomHeight));
                     
-                    // 下部セクションの高さを変更（flexで入力ボックスが自動調整される）
-                    bottomSection.style.height = newBottomHeight + 'px';
+                    // DOM要素を再取得して確実にアクセス
+                    const currentBottomSection = document.getElementById('bottomSection');
+                    const currentResizeBar = document.getElementById('resizeBar');
+                    const currentTopSection = document.getElementById('topSection');
                     
-                    // リサイズバーと上部セクションの位置を調整
-                    resizeBar.style.bottom = newBottomHeight + 'px';
-                    topSection.style.bottom = newBottomHeight + 'px';
+                    if (currentBottomSection && currentResizeBar && currentTopSection) {
+                        // 下部セクションの高さを変更（flexで入力ボックスが自動調整される）
+                        currentBottomSection.style.height = newBottomHeight + 'px';
+                        
+                        // リサイズバーと上部セクションの位置を調整
+                        currentResizeBar.style.bottom = newBottomHeight + 'px';
+                        currentTopSection.style.bottom = newBottomHeight + 'px';
+                    }
                     
                     e.preventDefault();
                 }
@@ -656,7 +751,29 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                     document.removeEventListener('mousemove', doResize);
                     document.removeEventListener('mouseup', stopResize);
                     
+                    // リサイズ位置を保存
+                    const currentBottomSection = document.getElementById('bottomSection');
+                    if (currentBottomSection) {
+                        const newHeight = currentBottomSection.offsetHeight;
+                        vscode.postMessage({
+                            type: 'saveResizePosition',
+                            position: newHeight
+                        });
+                    }
+                    
                     e.preventDefault();
+                }
+                
+                function setResizePosition(height) {
+                    const bottomSection = document.getElementById('bottomSection');
+                    const resizeBar = document.getElementById('resizeBar');
+                    const topSection = document.getElementById('topSection');
+                    
+                    if (bottomSection && resizeBar && topSection) {
+                        bottomSection.style.height = height + 'px';
+                        resizeBar.style.bottom = height + 'px';
+                        topSection.style.bottom = height + 'px';
+                    }
                 }
                 
                 // リサイズバーにイベントリスナーを追加
@@ -667,6 +784,15 @@ class ConsoleInputViewProvider implements vscode.WebviewViewProvider {
                 // 初期化
                 updateCharCount();
                 updateHistoryDisplay();
+                
+                // イベントリスナーを設定
+                const clearHistoryButton = document.getElementById('clearHistoryBtn');
+                if (clearHistoryButton) {
+                    clearHistoryButton.addEventListener('click', clearHistory);
+                    console.log('Clear history button event listener attached');
+                } else {
+                    console.error('Clear history button not found');
+                }
                 
                 // 永続化データの読み込みを要求
                 vscode.postMessage({
